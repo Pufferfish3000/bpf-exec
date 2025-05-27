@@ -6,30 +6,91 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "networking.h"
 
-#define RECV_TIMEOUT (1)
-
 static int CreateTCPFilterSocket();
 static int CreateRawFilterSocket(struct sock_fprog* bpf);
+static int AcceptPacket(int raw_sock, unsigned char** packet_data);
 
 int StartAgent()
 {
     int sock = -1;
     int exit_code = EXIT_FAILURE;
+    unsigned char* packet_data = NULL;
 
     sock = CreateTCPFilterSocket();
     if (-1 == sock)
     {
         fprintf(stderr, "Failed to create TCP filter socket\n");
-        return -1;
+        goto end;
     }
 
-    close(sock);
+    if (AcceptPacket(sock, &packet_data))
+    {
+        fprintf(stderr, "Failed to accept packet\n");
+        goto end;
+    }
 
+end:
+    NFREE(packet_data);
+    return exit_code;
+}
+
+/**
+ * @brief Accept a packet from the raw socket.
+ *
+ * @param raw_sock The file descriptor of the raw socket.
+ * @param packet_data A double pointer to store the received packet data.
+ * @return int EXIT_SUCCESS on success, EXIT_FAILURE on failure.
+ */
+static int AcceptPacket(int raw_sock, unsigned char** packet_data)
+{
+    int exit_code = EXIT_FAILURE;
+    const int recv_size = 1000;  // arbitrary size for receiving packets
+    ssize_t bytes_recv = 0;
+    unsigned char* raw = NULL;
+
+    if (NULL == packet_data || NULL != *packet_data)
+    {
+        fprintf(stderr, "packet_data must be a NULL double pointer\n");
+        goto end;
+    }
+
+    if (raw_sock < 0)
+    {
+        fprintf(stderr, "raw_sock must be a valid fd\n");
+        goto end;
+    }
+
+    raw = calloc(recv_size, sizeof(*raw));
+    if (NULL == raw)
+    {
+        fprintf(stderr, "Failed to calloc raw\n");
+        goto clean;
+    }
+
+    // arbitrary size for receiving packets, as we only care about the data at the end
+    bytes_recv = recv(raw_sock, raw, recv_size, 0);
+    if (bytes_recv < 0)
+    {
+        perror("recv");
+        fprintf(stderr, "Failed to receive data on raw_sock\n");
+        goto clean;
+    }
+
+    printf("Packet received: %s\n", (char*)raw);
+
+    *packet_data = raw;
     exit_code = EXIT_SUCCESS;
+    goto end;
+
+clean:
+    NFREE(raw);
+
+end:
     return exit_code;
 }
 
@@ -77,7 +138,6 @@ static int CreateTCPFilterSocket()
 static int CreateRawFilterSocket(struct sock_fprog* bpf)
 {
     int sock = -1;
-    struct timeval time_val = {.tv_sec = RECV_TIMEOUT, .tv_usec = 0};
 
     if (NULL == bpf)
     {
@@ -96,12 +156,6 @@ static int CreateRawFilterSocket(struct sock_fprog* bpf)
     if (setsockopt(sock, SOL_SOCKET, SO_ATTACH_FILTER, bpf, sizeof(*bpf)))
     {
         fprintf(stderr, "Could not set socket options\n");
-        goto clean;
-    }
-
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&time_val, sizeof(time_val)))
-    {
-        fprintf(stderr, "Could not set receive timeout\n");
         goto clean;
     }
 
