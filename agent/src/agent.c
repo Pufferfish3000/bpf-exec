@@ -1,0 +1,115 @@
+#include <arpa/inet.h>
+#include <linux/filter.h>
+#include <linux/if_ether.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
+#include "common.h"
+#include "networking.h"
+
+#define RECV_TIMEOUT (1)
+
+static int CreateTCPFilterSocket();
+static int CreateRawFilterSocket(struct sock_fprog* bpf);
+
+int StartAgent()
+{
+    int sock = -1;
+    int exit_code = EXIT_FAILURE;
+
+    sock = CreateTCPFilterSocket();
+    if (-1 == sock)
+    {
+        fprintf(stderr, "Failed to create TCP filter socket\n");
+        return -1;
+    }
+
+    close(sock);
+
+    exit_code = EXIT_SUCCESS;
+    return exit_code;
+}
+
+/**
+ * @brief Create a TCP filter socket for port 4578.
+ * 
+ * @return int the file descriptor of the created socket, or -1 on failure.
+ */
+static int CreateTCPFilterSocket()
+{
+    int sock = -1;
+    const int code_size = 20;
+
+    // generated with tcpdump -dd 'tcp port 4578'
+    struct sock_filter code[] = {
+        {0x28, 0, 0, 0x0000000c},  {0x15, 0, 6, 0x000086dd},   {0x30, 0, 0, 0x00000014},
+        {0x15, 0, 15, 0x00000006}, {0x28, 0, 0, 0x00000036},   {0x15, 12, 0, 0x000011e2},
+        {0x28, 0, 0, 0x00000038},  {0x15, 10, 11, 0x000011e2}, {0x15, 0, 10, 0x00000800},
+        {0x30, 0, 0, 0x00000017},  {0x15, 0, 8, 0x00000006},   {0x28, 0, 0, 0x00000014},
+        {0x45, 6, 0, 0x00001fff},  {0xb1, 0, 0, 0x0000000e},   {0x48, 0, 0, 0x0000000e},
+        {0x15, 2, 0, 0x000011e2},  {0x48, 0, 0, 0x00000010},   {0x15, 0, 1, 0x000011e2},
+        {0x6, 0, 0, 0x00040000},   {0x6, 0, 0, 0x00000000},
+    };
+
+    struct sock_fprog bpf = {
+        .len = code_size,
+        .filter = code,
+    };
+
+    sock = CreateRawFilterSocket(&bpf);
+    if (-1 == sock)
+    {
+        fprintf(stderr, "Could not create raw filter socket\n");
+    }
+
+    return sock;
+}
+
+/**
+ * @brief Create a raw filter socket with the given BPF program.
+ *
+ * @param bpf Pointer to the BPF program to attach to the socket.
+ * @return int The file descriptor of the created socket, or -1 on failure.
+ */
+static int CreateRawFilterSocket(struct sock_fprog* bpf)
+{
+    int sock = -1;
+    struct timeval time_val = {.tv_sec = RECV_TIMEOUT, .tv_usec = 0};
+
+    if (NULL == bpf)
+    {
+        fprintf(stderr, "bpf can not be NULL\n");
+        goto end;
+    }
+
+    sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+
+    if (-1 == sock)
+    {
+        fprintf(stderr, "Could not create raw sock\n");
+        goto end;
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_ATTACH_FILTER, bpf, sizeof(*bpf)))
+    {
+        fprintf(stderr, "Could not set socket options\n");
+        goto clean;
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&time_val, sizeof(time_val)))
+    {
+        fprintf(stderr, "Could not set receive timeout\n");
+        goto clean;
+    }
+
+    goto end;
+
+clean:
+    close(sock);
+    sock = -1;
+end:
+    return sock;
+}

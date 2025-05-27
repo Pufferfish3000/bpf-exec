@@ -1,9 +1,12 @@
 
+#include <stdio.h>
+
+#include "agent.h"
 
 int main(void)
 {
 
-    
+    int exit_code = StartAgent();
 
-    return 0;
+    return exit_code;
 }
