@@ -8,5 +8,4 @@
  */
 int StartAgent();
 
-
 #endif /*AGENT_H*/
