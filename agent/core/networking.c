@@ -31,6 +31,7 @@ int CreateRawFilterSocket(struct sock_fprog* bpf)
 
     if (setsockopt(sock, SOL_SOCKET, SO_ATTACH_FILTER, bpf, sizeof(*bpf)))
     {
+        perror("setsockopt failed");
         fprintf(stderr, "Could not set socket options\n");
         goto clean;
     }
@@ -74,7 +75,6 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
     bytes_recv = recv(raw_sock, raw, recv_size, 0);
     if (bytes_recv < 0)
     {
-        perror("recv");
         fprintf(stderr, "Failed to receive data on raw_sock\n");
         goto clean;
     }

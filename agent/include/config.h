@@ -19,6 +19,6 @@ union config_block
  * 
  * @return bpfexec_config_t* 
  */
-bpfexec_config_t* get_bpfexec_config(void);
+bpfexec_config_t* GetBPFExecConfig(void);
 
 #endif /*CONFIG_H*/
