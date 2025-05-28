@@ -1,4 +1,4 @@
-import argparse
+import c2.parse as c2parser
 import shlex
 from pathlib import Path
 from cmd import Cmd
@@ -13,7 +13,7 @@ class C2Cmd(Cmd):
         super().__init__(completekey, stdin, stdout)
         self.c2: C2 = None
 
-    def _add_common_opts(self, parser: argparse.ArgumentParser) -> None:
+    def _add_common_opts(self, parser: c2parser.C2Parser) -> None:
         """Add common options to the parser."""
         parser.add_argument(
             "command",
@@ -46,8 +46,9 @@ class C2Cmd(Cmd):
         )
 
     def do_tcp(self, arg: str) -> None:
-        parser = argparse.ArgumentParser(
-            description="Send a raw TCP packet to the configured agent."
+        parser = c2parser.C2Parser(
+            description="Send a raw TCP packet to the configured agent.",
+            prog="tcp",
         )
 
         self._add_common_opts(parser)
@@ -59,13 +60,17 @@ class C2Cmd(Cmd):
             help="Sequence number for TCP Raw packet (default: 5445)",
         )
 
-        tcp_args = parser.parse_args(shlex.split(arg))
+        try:
+            tcp_args = parser.parse_args(shlex.split(arg))
+        except c2parser.BadArgument:
+            return
         self.c2.tcp_raw_send(tcp_args)
 
     def do_configure(self, arg: str) -> None:
         """Generates a new configured BPF Remote Shell Executable Agent. \nconfigure --name <agent_name> --output <outpath> --seq <sequence_number>"""
-        parser = argparse.ArgumentParser(
-            description="Configure the BPF Remote Shell Executable Agent."
+        parser = c2parser.C2Parser(
+            description="Configure the BPF Remote Shell Executable Agent.",
+            prog="configure",
         )
 
         parser.add_argument("--name", type=str, help="Name of the agent", required=True)
@@ -79,34 +84,38 @@ class C2Cmd(Cmd):
             help="Sequence number for tcp raw send",
         )
 
-        config_args = parser.parse_args(shlex.split(arg))
+        try:
+            config_args = parser.parse_args(shlex.split(arg))
+        except c2parser.BadArgument:
+            return
         self.c2.configure(config_args)
 
     def do_exit(self, arg: str) -> bool:
         """Exit the command loop."""
+        parser = c2parser.C2Parser(description="Exit the command loop", prog="exit")
+        try:
+            parser.parse_args(shlex.split(arg))
+        except c2parser.BadArgument:
+            return
         self.c2.view.print_msg("Goodbye.")
         return True
 
     def do_help(self, arg):
         """List available commands with "help" or detailed help with "help cmd"."""
-        if arg:
-            try:
-                func = getattr(self, "help_" + arg)
-            except AttributeError:
-                try:
-                    doc = getattr(self, "do_" + arg).__doc__
-                    if doc:
-                        self.stdout.write("%s\n" % str(doc))
-                        return
-                except AttributeError:
-                    pass
-                self.stdout.write("%s\n" % str(self.nohelp % (arg,)))
-                return
-            func()
-        else:
-            names = self.get_names()
-            self.c2.view.print_msg("Available commands:")
-            for name in names:
-                if name.startswith("do_"):
-                    cmd_name = name[3:]
-                    self.c2.view.print_msg(f"  {cmd_name}")
+        parser = c2parser.C2Parser(
+            description="Shows all available commands", prog="help"
+        )
+        try:
+            parser.parse_args(shlex.split(arg))
+        except c2parser.BadArgument:
+            return
+
+        names = self.get_names()
+        self.c2.view.print_msg(
+            "Type <command> --help for more information on a specific command.\n"
+        )
+        self.c2.view.print_msg("Available commands:")
+        for name in names:
+            if name.startswith("do_"):
+                cmd_name = name[3:]
+                self.c2.view.print_msg(f"  {cmd_name}")
