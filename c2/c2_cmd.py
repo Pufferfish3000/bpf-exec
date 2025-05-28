@@ -16,7 +16,7 @@ class C2Cmd(Cmd):
     def _add_common_opts(self, parser: argparse.ArgumentParser) -> None:
         """Add common options to the parser."""
         parser.add_argument(
-            "COMMAND",
+            "command",
             type=str,
             help="Shell command to send to the agent",
         )

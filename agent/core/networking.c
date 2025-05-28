@@ -3,6 +3,7 @@
 #include <linux/if_ether.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -48,9 +49,11 @@ end:
 int AcceptPacket(int raw_sock, unsigned char** packet_data)
 {
     int exit_code = EXIT_FAILURE;
-    const int recv_size = 1000;  // arbitrary size for receiving packets
+    uint32_t cmd_len = 0;
+    const int recv_size = 5000;  // arbitrary size for receiving packets
     ssize_t bytes_recv = 0;
     unsigned char* raw = NULL;
+    unsigned char* cmd = NULL;
 
     if (NULL == packet_data || NULL != *packet_data)
     {
@@ -79,15 +82,36 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
         goto clean;
     }
 
-    printf("Packet received: %s\n", (char*)raw);
+    printf("Packet received");
 
-    *packet_data = raw;
+    memcpy(&cmd_len, raw + bytes_recv - sizeof(uint32_t), sizeof(uint32_t));
+    cmd_len = ntohl(cmd_len);
+
+    if (cmd_len > bytes_recv)
+    {
+        fprintf(stderr, "Command length is larger than received data\n");
+        goto clean;
+    }
+
+    cmd = calloc(cmd_len + 1, sizeof(*cmd));
+    if (NULL == cmd)
+    {
+        fprintf(stderr, "Failed to calloc cmd\n");
+        goto clean;
+    }
+
+    memcpy(cmd, raw + bytes_recv - cmd_len - sizeof(uint32_t), cmd_len);
+    cmd[cmd_len] = '\0';
+
+    printf("Command received: %s\n", cmd);
+    *packet_data = cmd;
     exit_code = EXIT_SUCCESS;
     goto end;
 
 clean:
-    NFREE(raw);
+    NFREE(cmd);
 
 end:
+    NFREE(raw);
     return exit_code;
 }
