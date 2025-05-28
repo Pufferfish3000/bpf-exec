@@ -9,7 +9,7 @@ format:
 	black .
 
 lint: build
-	# mypy --config-file mypy.ini c2/
+	mypy --config-file mypy.ini c2/
 	@CodeChecker analyze ./build/compile_commands.json --enable sensitive --output ./codechecker
 	-CodeChecker parse --export html --output ./codechecker/report ./codechecker
 	firefox ./codechecker/report/index.html &
