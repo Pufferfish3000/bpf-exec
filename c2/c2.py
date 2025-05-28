@@ -1,5 +1,6 @@
 from c2.view import C2View
 from cmd import Cmd
+from pathlib import Path
 from importlib.resources import files
 from c2.parse import get_command_args
 import struct
@@ -90,6 +91,8 @@ class C2Cmd:
         self.view.print_msg(f"Configuring with args: {args}")
         path = files("c2.deploy").joinpath("agent_x86_64")
 
+        path = Path(path).resolve()
+
         if not path.exists():
             self.view.print_error("Agent executable not found.")
             return False
@@ -98,7 +101,7 @@ class C2Cmd:
             agent_data = f.read()
 
         canary = "According to all known laws of aviation"
-        index = agent_data.find(canary.encode())
+        index = agent_data.find(canary.encode(encoding="utf-8"))
 
         if index == -1:
             self.view.print_error(f"Could not find agent canary.")
@@ -107,11 +110,14 @@ class C2Cmd:
         packed_data = self._get_packed_data(args)
         new_data = agent_data[:index] + packed_data + agent_data[index + len(canary) :]
 
-        output_dir = f"{args.output}/{args.name}"
+        output_dir = Path(args.output)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        output_dir = Path(output_dir, f"{args.name}.bpf")
 
         with open(output_dir, "wb") as f:
             f.write(new_data)
-        self.view.print_success(f"Written new config to {output_dir}")
+        self.view.print_success(f"Written new config to {output_dir.absolute()}")
 
         return True
 
