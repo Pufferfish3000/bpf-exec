@@ -57,8 +57,7 @@ class C2View:
             msg (str): message to print
         """
         self.print_msg(msg)
-        
-    
+
     def print_msg(self, msg: str, text_code: str = "FFFFFF") -> None:
         """prints error message in format [INFO] <msg>
 
