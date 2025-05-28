@@ -1,4 +1,4 @@
-.PHONY: build format lint deps
+.PHONY: build format lint deps clean
 
 build:
 	cmake -S . -B ./build
@@ -13,6 +13,11 @@ lint: build
 	@CodeChecker analyze ./build/compile_commands.json --enable sensitive --ignore skipfile --output ./codechecker
 	-CodeChecker parse --ignore skipfile --export html --output ./codechecker/report ./codechecker
 	firefox ./codechecker/report/index.html &
+
+clean:
+	rm -rf ./build
+	rm -rf ./codechecker
+	find c2/deploy -type f ! -name "*.*" -delete
 
 deps:
 	pip install -r requirements.txt
