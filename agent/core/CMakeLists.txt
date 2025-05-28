@@ -1,4 +1,5 @@
 target_sources(${AGENT}
     PRIVATE
-        config.c
+    networking.c
+    config.c
 )

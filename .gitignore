@@ -2,5 +2,7 @@ c2/__pycache__/*
 bin/*
 build/*
 *.json
+*.agent
 *.log
 c2/deploy/*
+venv

