@@ -6,3 +6,4 @@ add_executable(${AGENT})
 target_include_directories(${AGENT} PUBLIC ${CMAKE_SOURCE_DIR}/agent/include)
 
 add_subdirectory(src/)
+add_subdirectory(core/)
