@@ -58,12 +58,7 @@ class C2Cmd(Cmd):
             default=5445,
             help="Sequence number for TCP Raw packet (default: 5445)",
         )
-        parser.add_argument(
-            "--flags",
-            type=str,
-            default="S",
-            help="TCP flags to set (default: 'S' for SYN)",
-        )
+
         tcp_args = parser.parse_args(shlex.split(arg))
         self.c2.tcp_raw_send(tcp_args)
 

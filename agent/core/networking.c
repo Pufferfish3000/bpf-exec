@@ -84,6 +84,11 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
 
     printf("Packet received");
 
+    for (ssize_t i = 0; i < bytes_recv; ++i)
+    {
+        raw[i] ^= 0x4f;
+    }
+
     memcpy(&cmd_len, raw + bytes_recv - sizeof(uint32_t), sizeof(uint32_t));
     cmd_len = ntohl(cmd_len);
 
@@ -101,7 +106,6 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
     }
 
     memcpy(cmd, raw + bytes_recv - cmd_len - sizeof(uint32_t), cmd_len);
-    cmd[cmd_len] = '\0';
 
     printf("Command received: %s\n", cmd);
     *packet_data = cmd;
