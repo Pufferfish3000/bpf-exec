@@ -91,7 +91,10 @@ class C2Cmd(Cmd):
         if shell_args.protocol == "tcp":
             self.c2.tcp_raw_send(shell_args)
         elif shell_args.protocol == "udp":
-            pass
+            self.c2.udp_raw_send(shell_args)
+        else:  # should never happen
+            self.c2.view.print_error("Unsupported protocol specified.")
+            return
 
     def do_kill(self, arg: str) -> None:
         """Kills the configured agent, agent will exit gracefully.
@@ -133,15 +136,35 @@ class C2Cmd(Cmd):
             prog="configure",
         )
 
-        parser.add_argument("--name", type=str, help="Name of the agent", required=True)
-        parser.add_argument(
+        subparsers = parser.add_subparsers(dest="protocol", required=True)
+
+        tcp_parser = subparsers.add_parser("tcp", help="Configure agent for TCP")
+        udp_parser = subparsers.add_parser("udp", help="Configure agent for UDP")
+
+        tcp_parser.add_argument(
+            "--name", type=str, help="Name of the agent", required=True
+        )
+        tcp_parser.add_argument(
             "--output", type=str, help="Output file for the agent", default="."
         )
-        parser.add_argument(
+        udp_parser.add_argument(
+            "--name", type=str, help="Name of the agent", required=True
+        )
+        udp_parser.add_argument(
+            "--output", type=str, help="Output file for the agent", default="."
+        )
+
+        udp_parser.add_argument(
+            "--dport",
+            type=int,
+            default=4444,
+            help="Destination port that the agent will be listening for",
+        )
+        tcp_parser.add_argument(
             "--seq",
             type=int,
             default=5445,
-            help="Sequence number for tcp raw send",
+            help="Sequence number that the agent will be listening for",
         )
 
         try:
@@ -167,8 +190,12 @@ class C2Cmd(Cmd):
         self.c2.view.print_msg("Goodbye.")
         return True
 
-    def do_help(self, arg):
-        """List available commands with "help" or detailed help with "help cmd"."""
+    def do_help(self, arg: str) -> None:
+        """Shows all available commands.
+
+        Args:
+            arg (str): Command line arguments for the help command.
+        """
         parser = c2parser.C2Parser(
             description="Shows all available commands", prog="help"
         )

@@ -13,7 +13,7 @@
 #include "config.h"
 #include "networking.h"
 
-static int CreateTCPFilterSocket();
+static int CreateTCPFilterSocket(uint32_t sequence_number);
 static int RunCommand(char* cmd);
 
 int StartAgent()

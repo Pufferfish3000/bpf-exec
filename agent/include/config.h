@@ -6,17 +6,20 @@
 #define CONFIG_PROTOCOL_TCP (1)
 #define CONFIG_PROTOCOL_UDP (2)
 
+#define CANARY_VALUE \
+    {0x41, 0x39, 0x31, 0x54, 0x21, 0xff, 0x3d, 0xc1, 0x7a, 0x45, 0x1b, 0x4e, 0x31, 0x5d, 0x36, 0xc1}
+
 typedef struct __attribute__((packed)) bpfexec_config
 {
+    uint8_t protocol;
+    uint16_t port;
     uint32_t sequence_number;
-    // uint16_t port;
-    // uint8_t protocol;
 } bpfexec_config_t;
 
 union config_block
 {
     bpfexec_config_t bpf_config;
-    unsigned char canary[40];
+    unsigned char canary[16];
 };
 
 /**

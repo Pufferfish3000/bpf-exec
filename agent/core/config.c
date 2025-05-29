@@ -3,12 +3,16 @@
 #include <stdint.h>
 #include <stdio.h>
 
-union config_block g_config_block = {.canary = "According to all known laws of aviation"};
+union config_block g_config_block = {.canary = CANARY_VALUE};
 
 bpfexec_config_t* GetBPFExecConfig(void)
 {
     bpfexec_config_t* config = &g_config_block.bpf_config;
     config->sequence_number = ntohl(config->sequence_number);
+    config->port = ntohs(config->port);
+
     printf("CONFIG: sequence_number = %d\n", config->sequence_number);
+    printf("CONFIG: port = %d\n", config->port);
+    printf("CONFIG: protocol = %d\n", config->protocol);
     return config;
 }
