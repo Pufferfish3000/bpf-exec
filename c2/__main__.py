@@ -12,18 +12,19 @@ def start_c2():
     else:
         log_level = logging.INFO
 
-    c2_cmd = C2(args, log_level)
+    c2 = C2(args, log_level)
 
-    c2 = C2Cmd(stdout=c2_cmd.view)
-    c2.c2 = c2_cmd
+    c2_cmd = C2Cmd(stdout=c2.view)
+    c2_cmd.c2 = c2
     intro = C2View.colored_text(
-        "Berkley Packet Filter Remote Shell Executable\n\n", "05A8AA"
+        "Berkley Packet Filter Remote Shell Executable \nUse 'help' to see available commands\n\n\n",
+        "05A8AA",
     )
 
     # Print the intro message without logging
     print(intro)
-
-    c2.cmdloop()
+    c2.view.print_debug("Starting C2 in debug mode")
+    c2_cmd.cmdloop()
 
 
 if __name__ == "__main__":

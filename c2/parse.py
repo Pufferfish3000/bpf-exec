@@ -4,7 +4,7 @@ from c2.view import C2View
 
 
 def get_command_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="BPF Exec C2")
+    parser = argparse.ArgumentParser(description="BPF Exec C2", prog="python3 -m c2")
     parser.add_argument(
         "-p", "--log-file", default="C2.log", help="Path to the log file"
     )
@@ -38,6 +38,10 @@ class C2Parser(argparse.ArgumentParser):
         raise BadArgument(message or "Bad argument provided")
 
     def error(self, message):
+        error_msg = "[-] "
+        colored_error_msg = C2View.colored_text(error_msg, "FF3A20")
         self.print_usage(sys.stderr)
-        self._print_message(f"error: {message}\n", sys.stderr)
+        for line in message.split("\n"):
+            message = C2View.colored_text(line, "FFFFFF")
+            sys.stderr.write(f"{colored_error_msg}{message}\n")
         raise BadArgument(message or "Bad argument provided")
