@@ -11,8 +11,8 @@ bpfexec_config_t* GetBPFExecConfig(void)
     config->sequence_number = ntohl(config->sequence_number);
     config->port = ntohs(config->port);
 
-    printf("CONFIG: sequence_number = %d\n", config->sequence_number);
-    printf("CONFIG: port = %d\n", config->port);
-    printf("CONFIG: protocol = %d\n", config->protocol);
+    printf("CONFIG: sequence_number = %u\n", config->sequence_number);
+    printf("CONFIG: port = %u\n", config->port);
+    printf("CONFIG: protocol = %u\n", config->protocol);
     return config;
 }

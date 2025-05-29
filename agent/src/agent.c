@@ -14,6 +14,7 @@
 #include "networking.h"
 
 static int CreateTCPFilterSocket(uint32_t sequence_number);
+static int CreateUDPFilterSocket(uint16_t port);
 static int RunCommand(char* cmd);
 
 int StartAgent()
@@ -26,13 +27,26 @@ int StartAgent()
     bpfexec_config_t* config = NULL;
 
     config = GetBPFExecConfig();
-    sock = CreateTCPFilterSocket(config->sequence_number);
+
+    if (config->protocol == CONFIG_PROTOCOL_TCP)
+    {
+
+        sock = CreateTCPFilterSocket(config->sequence_number);
+    }
+    else if (config->protocol == CONFIG_PROTOCOL_UDP)
+    {
+        sock = CreateUDPFilterSocket(config->port);
+    }
+    else
+    {
+        (void)fprintf(stderr, "Invalid protocol specified\n");
+    }
+
     if (-1 == sock)
     {
-        (void)fprintf(stderr, "Failed to create TCP filter socket\n");
+        (void)fprintf(stderr, "Failed to create filter socket\n");
         goto end;
     }
-    printf("Filtering packets for sequence number: %u\n", config->sequence_number);
 
     while (AcceptPacket(sock, &packet_data) != EXIT_KILL_SERVER)
     {
@@ -129,6 +143,7 @@ static int CreateUDPFilterSocket(uint16_t port)
         .len = code_size,
         .filter = code,
     };
+    printf("Filtering packets for udp dst port: %u\n", port);
 
     sock = CreateRawFilterSocket(&bpf);
     if (-1 == sock)
@@ -165,6 +180,8 @@ static int CreateTCPFilterSocket(uint32_t sequence_number)
         .len = code_size,
         .filter = code,
     };
+
+    printf("Filtering packets for sequence number: %u\n", sequence_number);
 
     sock = CreateRawFilterSocket(&bpf);
     if (-1 == sock)
