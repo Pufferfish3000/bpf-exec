@@ -17,7 +17,8 @@ def start_c2():
     c2 = C2Cmd(stdout=c2_cmd.view)
     c2.c2 = c2_cmd
     intro = C2View.colored_text(
-        "Berkley Packet Filter Remote Shell Executable\n\n", "05A8AA"
+        "Berkley Packet Filter Remote Shell Executable \nUse 'help' to see available commands\n\n\n",
+        "05A8AA",
     )
 
     # Print the intro message without logging

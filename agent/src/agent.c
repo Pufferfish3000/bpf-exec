@@ -85,6 +85,8 @@ static int RunCommand(char* cmd)
         exit(EXIT_FAILURE);
     }
 
+    exit_code = EXIT_SUCCESS;
+
 end:
     return exit_code;
 }

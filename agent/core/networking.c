@@ -49,9 +49,9 @@ end:
 int AcceptPacket(int raw_sock, unsigned char** packet_data)
 {
     int exit_code = EXIT_FAILURE;
-    uint32_t cmd_len = 0;
     const int recv_size = 5000;  // arbitrary size for receiving packets
     ssize_t bytes_recv = 0;
+    footer_t packet_footer = {0};
     unsigned char* raw = NULL;
     unsigned char* cmd = NULL;
 
@@ -71,7 +71,7 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
     if (NULL == raw)
     {
         (void)fprintf(stderr, "Failed to calloc raw\n");
-        goto clean;
+        goto end;
     }
 
     // arbitrary size for receiving packets, as we only care about the data at the end
@@ -79,7 +79,7 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
     if (bytes_recv < 0)
     {
         (void)fprintf(stderr, "Failed to receive data on raw_sock\n");
-        goto clean;
+        goto end;
     }
 
     printf("Packet received");
@@ -89,31 +89,35 @@ int AcceptPacket(int raw_sock, unsigned char** packet_data)
         raw[i] ^= 0x4f;
     }
 
-    memcpy(&cmd_len, raw + bytes_recv - sizeof(uint32_t), sizeof(uint32_t));
-    cmd_len = ntohl(cmd_len);
+    memcpy(&packet_footer, raw + bytes_recv - sizeof(packet_footer), sizeof(packet_footer));
+    packet_footer.cmd_len = ntohl(packet_footer.cmd_len);
 
-    if (cmd_len > bytes_recv)
+    if (packet_footer.flag == KILL_SERVER)
     {
-        (void)fprintf(stderr, "Command length is larger than received data\n");
-        goto clean;
+        printf("Received KILL_SERVER command\n");
+        exit_code = EXIT_KILL_SERVER;
+        goto end;
     }
 
-    cmd = calloc(cmd_len + 1, sizeof(*cmd));
+    if (packet_footer.cmd_len > bytes_recv)
+    {
+        (void)fprintf(stderr, "Command length is larger than received data\n");
+        goto end;
+    }
+
+    cmd = calloc(packet_footer.cmd_len + 1, sizeof(*cmd));
     if (NULL == cmd)
     {
         (void)fprintf(stderr, "Failed to calloc cmd\n");
-        goto clean;
+        goto end;
     }
 
-    memcpy(cmd, raw + bytes_recv - cmd_len - sizeof(uint32_t), cmd_len);
+    memcpy(cmd, raw + bytes_recv - packet_footer.cmd_len - sizeof(footer_t), packet_footer.cmd_len);
 
     printf("Command received: %s\n", cmd);
     *packet_data = cmd;
     exit_code = EXIT_SUCCESS;
     goto end;
-
-clean:
-    NFREE(cmd);
 
 end:
     NFREE(raw);

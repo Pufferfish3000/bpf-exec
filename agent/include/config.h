@@ -6,7 +6,7 @@
 #define CONFIG_PROTOCOL_TCP (1)
 #define CONFIG_PROTOCOL_UDP (2)
 
-typedef struct bpfexec_config
+typedef struct __attribute__((packed)) bpfexec_config
 {
     uint32_t sequence_number;
     // uint16_t port;
