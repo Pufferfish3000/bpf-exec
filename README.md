@@ -29,17 +29,15 @@ Note: The current implementation of the C2 only supports one specific TLS and on
 ### Agent
 
 ```bash
-make build
+make all
 ```
 
 ### C2
 
-Agent must be built to run the C2
-
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install dist/c2-version-py3-none-any.whl
 
 ```
 
@@ -88,6 +86,8 @@ options:
 ```
 
 ### shell
+
+Run a shell command on remote box
 
 ```bash
 usage: shell [-h] {tcp,udp} [-h] [--sip SIP] --dip DIP [--sport SPORT] [--dport DPORT] [--seq SEQ] command

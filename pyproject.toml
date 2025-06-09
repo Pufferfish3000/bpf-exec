@@ -1,0 +1,18 @@
+[project]
+name = "c2"
+version = "0.0.0"
+description = "C2 for bpf exec project"
+dependencies=["scapy==2.6.1"]
+
+requires-python =">=3.10"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["c2"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"c2" = ["deploy/*"]

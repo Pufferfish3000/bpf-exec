@@ -1,1 +1,4 @@
 CodeChecker==6.23.1
+setuptools>=75.8
+build>=1.2
+wheel>=0.45
