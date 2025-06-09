@@ -4,5 +4,7 @@ build/*
 *.json
 *.agent
 *.log
-# c2/deploy/*
+c2/deploy/*
+dist
+c2.egg-info
 venv

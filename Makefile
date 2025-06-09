@@ -1,5 +1,7 @@
 .PHONY: build format lint deps clean
 
+all: build wheel
+
 build:
 	cmake -S . -B ./build
 	cmake --build ./build	
@@ -13,6 +15,9 @@ lint: build
 	@CodeChecker analyze ./build/compile_commands.json --enable sensitive --output ./codechecker
 	-CodeChecker parse --export html --output ./codechecker/report ./codechecker
 	firefox ./codechecker/report/index.html &
+
+wheel:
+	python3 -m build --wheel
 
 clean:
 	rm -rf ./build
