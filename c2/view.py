@@ -21,7 +21,7 @@ class C2View:
         self.logger.addHandler(file_h)
 
     @staticmethod
-    def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    def _hex_to_rgb(hex_color: str) -> tuple[int, ...]:
         """Converts a hex color string to an RGB tuple.
 
         Args:
