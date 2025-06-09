@@ -1,7 +1,6 @@
 import c2.parse as c2parser
 import shlex
-from typing import Optional
-from pathlib import Path
+from typing import Optional, Any
 from cmd import Cmd
 from c2.view import C2View
 from c2.c2 import C2
@@ -12,9 +11,14 @@ class C2Cmd(Cmd):
 
     prompt = C2View.colored_text("BPF EXEC> ", "C9C9EE")
 
-    def __init__(self, completekey="tab", stdin=None, stdout=None):
+    def __init__(
+        self,
+        completekey: str = "tab",
+        stdin: Optional[Any] = None,
+        stdout: Optional[Any] = None,
+    ):
         super().__init__(completekey, stdin, stdout)
-        self.c2: C2 = None
+        self.c2: C2
 
     def _add_common_opts(self, parser: c2parser.C2Parser) -> None:
         """Adds common options to the parser for shell and kill commands.
@@ -186,7 +190,7 @@ class C2Cmd(Cmd):
         try:
             parser.parse_args(shlex.split(arg))
         except c2parser.BadArgument:
-            return
+            return None
         self.c2.view.print_msg("Goodbye.")
         return True
 

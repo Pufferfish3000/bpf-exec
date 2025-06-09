@@ -4,5 +4,5 @@ build/*
 *.json
 *.agent
 *.log
-c2/deploy/*
+# c2/deploy/*
 venv

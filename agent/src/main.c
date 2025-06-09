@@ -1,6 +1,4 @@
 
-#include <stdio.h>
-
 #include "agent.h"
 
 int main(void)
